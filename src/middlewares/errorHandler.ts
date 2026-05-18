@@ -1,13 +1,8 @@
 // middleware/errorHandler.ts
-import { Request, Response, NextFunction } from "express";
+import { Response } from "express";
 import AppError from "../errors/AppError";
 
-export const errorHandler = (
-  err: Error,
-  req: Request,
-  res: Response,
-  next: NextFunction
-): void => {
+export const errorHandler = (err: Error, res: Response): void => {
   let statusCode = 500;
   let message = "Internal server error";
 
