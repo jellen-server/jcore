@@ -1,5 +1,6 @@
 import express, { Request, Response } from "express";
 import "dotenv/config";
+import { errorHandler } from "./middlewares/errorHandler";
 
 const app = express();
 
@@ -20,6 +21,9 @@ app.get("/api/health", (_req: Request, res: Response) => {
     message: "서버가 정상적으로 작동 중입니다.",
   });
 });
+
+// 전역 오류 처리 미들웨어 등록
+app.use(errorHandler);
 
 // 서버 시작
 const PORT = Number(process.env.PORT);
