@@ -1,8 +1,13 @@
 // middleware/errorHandler.ts
-import { Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import AppError from "../errors/AppError";
 
-export const errorHandler = (err: Error, res: Response): void => {
+export const errorHandler = (
+  err: Error,
+  _req: Request,
+  res: Response,
+  _next: NextFunction,
+): void => {
   let statusCode = 500;
   let message = "Internal server error";
 
@@ -12,10 +17,12 @@ export const errorHandler = (err: Error, res: Response): void => {
     message = err.message;
   }
 
+  // 예외 응답 생성
   const response = {
     success: false,
     error: message,
   };
 
+  // 예외 응답 전송
   res.status(statusCode).json(response);
 };
