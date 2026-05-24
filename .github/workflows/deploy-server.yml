@@ -22,6 +22,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             set -e
+            export PATH="/home/vactor/.nvm/versions/node/v24.15.0/bin:$PATH"
             cd ~/jcore/
             git pull origin main
             npm install
