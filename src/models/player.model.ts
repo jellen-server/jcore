@@ -1,10 +1,11 @@
-import { Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
+import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 /**
  * players 테이블 모델
  */
 export class PlayerModel {
   id: string;
+  uuid: string;
   steamid64: string;
   nickname: string;
   avatar: string;
@@ -14,6 +15,7 @@ export class PlayerModel {
 
   constructor(data: any) {
     this.id = data.id || "";
+    this.uuid = data.uuid || "";
     this.steamid64 = data.steamid64 || "";
     this.nickname = data.nickname || "";
     this.avatar = data.avatar || "";
@@ -29,23 +31,32 @@ export class PlayerModel {
    * @returns 생성된 PlayerModel 인스턴스
    */
   static async create(
-    playerData: PlayerModel,
+    uuid: string,
+    steamid64: string,
+    nickname: string,
+    avatar: string,
     connection: PoolConnection | Pool,
   ) {
-    await connection.execute(
+    const [result] = await connection.execute(
       `
         INSERT INTO players (player_uuid, steamid64, nickname, avatar)
         VALUES (?, ?, ?, ?)
       `,
-      [
-        playerData.id,
-        playerData.steamid64,
-        playerData.nickname,
-        playerData.avatar,
-      ],
+      [uuid, steamid64, nickname, avatar],
     );
 
-    return playerData;
+    const player = new PlayerModel({
+      id: String((result as ResultSetHeader).insertId),
+      uuid,
+      steamid64,
+      nickname,
+      avatar,
+      createdAt: new Date(),
+      lastVisitedAt: new Date(),
+      totalPlaytime: 0,
+    });
+
+    return player;
   }
 
   /**
@@ -104,7 +115,6 @@ export class PlayerModel {
    * @param playerId 플레이어 id
    * @param nickname 닉네임
    * @param avatar 아바타 URL
-   * @param lastVisitedAt 마지막 방문 시간
    * @param connection MariaDB 연결 객체
    */
   static async updateProfile(
@@ -154,6 +164,7 @@ export class PlayerModel {
 
     const player = new PlayerModel({
       id: String(data.player_id),
+      uuid: data.player_uuid,
       steamid64: data.steamid64,
       nickname: data.nickname,
       avatar: data.avatar,
