@@ -1,4 +1,9 @@
-import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
+import {
+  Pool,
+  PoolConnection,
+  ResultSetHeader,
+  RowDataPacket,
+} from "mysql2/promise";
 
 /**
  * players 테이블 모델
@@ -26,7 +31,10 @@ export class PlayerModel {
 
   /**
    * 플레이어 생성
-   * @param playerData 플레이어 데이터 객체
+   * @param uuid 플레이어 uuid
+   * @param steamid64 플레이어 SteamID64
+   * @param nickname 플레이어 닉네임
+   * @param avatar 플레이어 아바타 URL
    * @param connection MariaDB 연결 객체
    * @returns 생성된 PlayerModel 인스턴스
    */
@@ -37,7 +45,7 @@ export class PlayerModel {
     avatar: string,
     connection: PoolConnection | Pool,
   ) {
-    const [result] = await connection.execute(
+    const [result] = await connection.execute<ResultSetHeader>(
       `
         INSERT INTO players (player_uuid, steamid64, nickname, avatar)
         VALUES (?, ?, ?, ?)
@@ -46,7 +54,7 @@ export class PlayerModel {
     );
 
     const player = new PlayerModel({
-      id: String((result as ResultSetHeader).insertId),
+      id: String(result.insertId),
       uuid,
       steamid64,
       nickname,
@@ -66,7 +74,7 @@ export class PlayerModel {
    * @returns PlayerModel 인스턴스 또는 null
    */
   static async findById(playerId: string, connection: PoolConnection | Pool) {
-    const [rows] = await connection.execute(
+    const [rows] = await connection.execute<RowDataPacket[]>(
       `
         SELECT *
         FROM players
@@ -75,7 +83,7 @@ export class PlayerModel {
       [playerId],
     );
 
-    const player = (rows as RowDataPacket[])[0];
+    const player = rows[0];
     if (!player) {
       return null;
     }
@@ -93,7 +101,7 @@ export class PlayerModel {
     steamid64: string,
     connection: PoolConnection | Pool,
   ) {
-    const [rows] = await connection.execute(
+    const [rows] = await connection.execute<RowDataPacket[]>(
       `
         SELECT *
         FROM players
@@ -102,7 +110,7 @@ export class PlayerModel {
       [steamid64],
     );
 
-    const player = (rows as RowDataPacket[])[0];
+    const player = rows[0];
     if (!player) {
       return null;
     }
