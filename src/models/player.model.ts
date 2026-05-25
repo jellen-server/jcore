@@ -119,6 +119,60 @@ export class PlayerModel {
   }
 
   /**
+   * 플레이어 uuid로 플레이어 조회
+   * @param playerUuid 플레이어 uuid
+   * @param connection MariaDB 연결 객체
+   * @returns PlayerModel 인스턴스 또는 null
+   */
+  static async findByUuid(
+    playerUuid: string,
+    connection: PoolConnection | Pool,
+  ) {
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `
+        SELECT *
+        FROM players
+        WHERE player_uuid = ?
+      `,
+      [playerUuid],
+    );
+
+    const player = rows[0];
+    if (!player) {
+      return null;
+    }
+
+    return this.formatPlayer(player);
+  }
+
+  /**
+   * 닉네임으로 플레이어 조회 (부분 일치)
+   * @param nickname 조회할 닉네임 (부분 일치)
+   * @param connection MariaDB 연결 객체
+   * @returns PlayerModel 인스턴스 배열 또는 null
+   */
+  static async findByNickname(
+    nickname: string,
+    connection: PoolConnection | Pool,
+  ) {
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `
+        SELECT *
+        FROM players
+        WHERE nickname LIKE CONCAT('%', ?, '%')
+      `,
+      [nickname],
+    );
+
+    if (rows.length === 0) {
+      return null;
+    }
+
+    const players = rows.map((row) => this.formatPlayer(row));
+    return players;
+  }
+
+  /**
    * 플레이어 프로필 업데이트
    * @param playerId 플레이어 id
    * @param nickname 닉네임
