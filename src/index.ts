@@ -1,6 +1,7 @@
 import express, { Request, Response } from "express";
 import "dotenv/config";
 import { errorHandler } from "./middlewares/errorHandler";
+import { idempotencyHandler } from "./middlewares/idempotencyHandler";
 
 const app = express();
 
@@ -8,6 +9,9 @@ app.set("trust proxy", 2);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// 멱등성 키 미들웨어 등록
+app.use(idempotencyHandler);
 
 // 기본 라우트 설정
 app.get("/", (_req: Request, res: Response) => {
