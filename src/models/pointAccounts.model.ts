@@ -8,7 +8,7 @@ import {
 /**
  * 포인트 계좌 모델
  */
-export class PointAccountModel {
+export class PointAccountsModel {
   id: string;
   uuid: string;
   playerId: string;
@@ -35,7 +35,6 @@ export class PointAccountModel {
    * @param playerId 플레이어 id
    * @param accountNumber 계좌 번호
    * @param password 계좌 비밀번호
-   * @param point 초기 포인트
    * @param connection MariaDB 연결 객체
    * @returns 생성된 PointAccountModel 인스턴스
    */
@@ -43,25 +42,23 @@ export class PointAccountModel {
     uuid: string,
     playerId: string,
     accountNumber: string,
-    password: string,
-    point: number,
     connection: PoolConnection | Pool,
   ) {
     const [result] = await connection.execute<ResultSetHeader>(
       `
-        INSERT INTO point_accounts (uuid, player_id, account_number, password, point)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO point_accounts (uuid, player_id, account_number)
+        VALUES (?, ?, ?)
       `,
-      [uuid, playerId, accountNumber, password, point],
+      [uuid, playerId, accountNumber],
     );
 
-    const pointAccount = new PointAccountModel({
+    const pointAccount = new PointAccountsModel({
       id: String(result.insertId),
       uuid,
       playerId,
       accountNumber,
-      password,
-      point,
+      password: null,
+      point: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -184,7 +181,7 @@ export class PointAccountModel {
       return null;
     }
 
-    const pointAccount = new PointAccountModel({
+    const pointAccount = new PointAccountsModel({
       id: String(data.account_id),
       uuid: data.account_uuid,
       playerId: data.player_id,
