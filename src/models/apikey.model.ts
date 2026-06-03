@@ -31,7 +31,7 @@ export class ApiKeyModel {
       `
         SELECT *
         FROM apikey
-        WHERE key = ?
+        WHERE apikey = ?
       `,
       [key],
     );
@@ -60,7 +60,7 @@ export class ApiKeyModel {
       key: data.key,
       status: data.status,
       comment: data.comment,
-      createdAt: data.createdAt,
+      createdAt: data.created_at,
     });
   }
 }
