@@ -1,6 +1,7 @@
 import { createHash } from "crypto";
 import { Request, Response, NextFunction } from "express";
 import { redis } from "../config/redis";
+import { ErrorCode } from "../types";
 
 const TTL_RESULT = 60 * 60;
 const TTL_PROCESSING = 30;
@@ -64,7 +65,7 @@ export async function idempotencyHandler(
 
       if (entry.bodyHash !== bodyHash) {
         return res.status(409).json({
-          error: "IDEMPOTENCY_MISMATCH",
+          error: ErrorCode.IDEMPOTENCY_MISMATCH,
           message:
             "Request body does not match the original request for this idempotency key.",
         });
@@ -209,7 +210,7 @@ async function waitForResult(
 
       if (entry.bodyHash !== bodyHash) {
         return res.status(409).json({
-          error: "IDEMPOTENCY_MISMATCH",
+          error: ErrorCode.IDEMPOTENCY_MISMATCH,
           message:
             "Request body does not match the original request for this idempotency key.",
         });
@@ -220,20 +221,20 @@ async function waitForResult(
   } catch (err) {
     console.error("idempotency: polling failed", err);
     return res.status(503).json({
-      error: "IDEMPOTENCY_ERROR",
+      error: ErrorCode.IDEMPOTENCY_ERROR,
       message: "Failed to retrieve processing result.",
     });
   }
 
   if (keyDeleted) {
     return res.status(409).json({
-      error: "IDEMPOTENCY_CONFLICT",
+      error: ErrorCode.IDEMPOTENCY_CONFLICT,
       message: "The original request failed. You may retry with the same key.",
     });
   }
 
   return res.status(503).json({
-    error: "IDEMPOTENCY_TIMEOUT",
+    error: ErrorCode.IDEMPOTENCY_TIMEOUT,
     message: "The original request is still being processed.",
   });
 }
