@@ -2,6 +2,7 @@ import express, { Request, Response } from "express";
 import "dotenv/config";
 import { errorHandler } from "./middlewares/errorHandler";
 import { idempotencyHandler } from "./middlewares/idempotencyHandler";
+import internalRouter from "./routes/v1/internal";
 
 const app = express();
 
@@ -25,6 +26,9 @@ app.get("/api/health", (_req: Request, res: Response) => {
     message: "서버가 정상적으로 작동 중입니다.",
   });
 });
+
+// 게임 서버 내부 API 라우트 설정
+app.use("/api/v1/internal", internalRouter);
 
 // 전역 오류 처리 미들웨어 등록
 app.use(errorHandler);
