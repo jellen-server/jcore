@@ -8,7 +8,7 @@ import {
 /**
  * players 테이블 모델
  */
-export class PlayerModel {
+export class PlayersModel {
   id: string;
   uuid: string;
   steamid64: string;
@@ -43,17 +43,18 @@ export class PlayerModel {
     steamid64: string,
     nickname: string,
     avatar: string,
+    accountOwnerId: string,
     connection: PoolConnection | Pool,
   ) {
     const [result] = await connection.execute<ResultSetHeader>(
       `
-        INSERT INTO players (player_uuid, steamid64, nickname, avatar)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO players (player_uuid, steamid64, nickname, avatar, account_owner_id)
+        VALUES (?, ?, ?, ?, ?)
       `,
-      [uuid, steamid64, nickname, avatar],
+      [uuid, steamid64, nickname, avatar, accountOwnerId],
     );
 
-    const player = new PlayerModel({
+    const player = new PlayersModel({
       id: String(result.insertId),
       uuid,
       steamid64,
@@ -196,22 +197,39 @@ export class PlayerModel {
   }
 
   /**
-   * 플레이어 마지막 방문 시간 업데이트
+   * 플레이어 로그인 시 닉네임과 마지막 방문 일자 업데이트
    * @param playerId 플레이어 id
+   * @param nickname 플레이어 닉네임
+   * @param avatar 아바타 URL (optional)
+   * @param lastVisitedAt 마지막 접속 일자
    * @param connection MariaDB 연결 객체
    */
-  static async updateLastVisit(
+  static async updateOnLogin(
     playerId: string,
+    nickname: string,
+    avatar: string | null,
+    lastVisitedAt: Date,
     connection: PoolConnection | Pool,
   ) {
-    await connection.execute(
-      `
-        UPDATE players
-        SET last_visited_at = NOW()
-        WHERE player_id = ?
-      `,
-      [playerId],
-    );
+    if (avatar !== null) {
+      await connection.execute(
+        `
+          UPDATE players
+          SET nickname = ?, avatar = ?, last_visited_at = ?
+          WHERE player_id = ?
+        `,
+        [nickname, avatar, lastVisitedAt, playerId],
+      );
+    } else {
+      await connection.execute(
+        `
+          UPDATE players
+          SET nickname = ?, last_visited_at = ?
+          WHERE player_id = ?
+        `,
+        [nickname, lastVisitedAt, playerId],
+      );
+    }
   }
 
   /**
@@ -224,7 +242,7 @@ export class PlayerModel {
       return null;
     }
 
-    const player = new PlayerModel({
+    const player = new PlayersModel({
       id: String(data.player_id),
       uuid: data.player_uuid,
       steamid64: data.steamid64,
