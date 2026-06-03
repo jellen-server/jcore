@@ -16,6 +16,5 @@ export const generateUuid = () => {
 export const generateAccountNumber = (): string => {
   const part1 = crypto.randomInt(0, 10000).toString().padStart(4, "0");
   const part2 = crypto.randomInt(0, 10000).toString().padStart(4, "0");
-
   return `${part1}-${part2}`;
 };

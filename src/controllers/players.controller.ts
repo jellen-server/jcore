@@ -13,13 +13,18 @@ export class PlayersController {
       const { ip, port, nickname } = req.body;
 
       // 플레이어 연결 처리
-      await PlayersService.handleConnection(steamid64, ip, port, nickname);
+      const result = await PlayersService.handleConnection(
+        steamid64,
+        ip,
+        port,
+        nickname,
+      );
 
       // 성공 응답 반환
       res.json({
         success: true,
         message: "Player connection recorded successfully.",
-        data: null,
+        data: result,
       });
     },
   );

@@ -1,5 +1,5 @@
 import { mariaDB } from "../config/mariadb";
-import { InternalServerError } from "../errors/CustomErrors";
+import { ConflictError, InternalServerError } from "../errors/CustomErrors";
 import {
   AccountOwnerModel,
   ConnectionLogsModel,
@@ -65,14 +65,14 @@ export class PlayersService {
             try {
               newPointAccount = await PointAccountsModel.create(
                 pointAccountUuid,
-                newPlayer.id,
+                newAccountOwner.id,
                 generateAccountNumber(),
                 connection,
               );
               break;
-            } catch (err: any) {
-              if (err.errno === 1062 && attempt < 9) continue;
-              throw err;
+            } catch (error: any) {
+              if (typeof error === typeof ConflictError) continue;
+              throw error;
             }
           }
 
@@ -103,36 +103,43 @@ export class PlayersService {
             initialPointReason,
             connection,
           );
-        } else {
-          // 플레이어 정보가 존재하면
-          // 닉네임, 마지막 접속 일자 업데이트
-          const newLastVisitedAt = new Date();
-          await PlayersModel.updateOnLogin(
-            player.id,
-            nickname,
-            playerSteamInfo?.avatarFull || null,
-            newLastVisitedAt,
-            connection,
-          );
 
-          // 접속 로그 기록
-          await ConnectionLogsModel.create(
-            player.id,
-            ip,
-            port,
-            nickname,
-            connection,
-          );
-
-          // 닉네임 변경 로그 기록 (닉네임이 변경된 경우에만)
-          if (player.nickname !== nickname) {
-            await NicknameHistoryModel.create(
-              player.id,
-              player.nickname,
-              connection,
-            );
-          }
+          // 새로 생성된 플레이어 정보 반환
+          return newPlayer;
         }
+
+        // 플레이어 정보가 존재하면
+        // 닉네임, 마지막 접속 일자 업데이트
+        const newLastVisitedAt = new Date();
+        await PlayersModel.updateOnLogin(
+          player.id,
+          nickname,
+          playerSteamInfo?.avatarFull || null,
+          newLastVisitedAt,
+          connection,
+        );
+
+        // 접속 로그 기록
+        await ConnectionLogsModel.create(
+          player.id,
+          ip,
+          port,
+          nickname,
+          connection,
+        );
+
+        // 닉네임 변경 로그 기록 (닉네임이 변경된 경우에만)
+        if (player.nickname !== nickname) {
+          await NicknameHistoryModel.create(
+            player.id,
+            player.nickname,
+            connection,
+          );
+        }
+
+        // 업데이트된 플레이어 정보 반환
+        player.lastVisitedAt = newLastVisitedAt;
+        return player;
       },
     );
   }
