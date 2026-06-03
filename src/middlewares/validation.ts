@@ -20,9 +20,7 @@ export const validateBody = (schema: ZodObject) => {
       const validated = schema.safeParse(req.body);
       if (!validated.success) {
         const formattedError = formatZodError(validated.error);
-        throw new BadRequestError(
-          `요청 데이터가 유효하지 않습니다: ${formattedError}`,
-        );
+        throw new BadRequestError(`Request body is invalid: ${formattedError}`);
       }
 
       // 검증된 데이터로 body 교체
@@ -49,7 +47,7 @@ export const validateParams = (schema: ZodObject) => {
       if (!validated.success) {
         const formattedError = formatZodError(validated.error);
         throw new BadRequestError(
-          `요청 데이터가 유효하지 않습니다: ${formattedError}`,
+          `Request params are invalid: ${formattedError}`,
         );
       }
 
@@ -77,7 +75,7 @@ export const validateQuery = (schema: ZodObject) => {
       if (!validated.success) {
         const formattedError = formatZodError(validated.error);
         throw new BadRequestError(
-          `요청 데이터가 유효하지 않습니다: ${formattedError}`,
+          `Request query is invalid: ${formattedError}`,
         );
       }
 
