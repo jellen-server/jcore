@@ -3,7 +3,7 @@ import { Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
 /**
  * 포인트 거래 기록 모델
  */
-export class PointTransactionModel {
+export class PointTransactionsModel {
   uuid: string;
   senderAccountId: string;
   senderAccountHolderUuid?: string;
@@ -78,7 +78,7 @@ export class PointTransactionModel {
       ],
     );
 
-    return new PointTransactionModel({
+    return new PointTransactionsModel({
       uuid: transactionUuid,
       senderAccountId,
       receiverAccountId,
@@ -100,7 +100,7 @@ export class PointTransactionModel {
       return null;
     }
 
-    return new PointTransactionModel({
+    return new PointTransactionsModel({
       uuid: data.transaction_uuid,
       senderAccountId: data.sender_account_id,
       senderAccountHolderUuid: data.sender_account_holder_uuid,
