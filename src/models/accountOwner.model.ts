@@ -1,9 +1,11 @@
 import {
   Pool,
   PoolConnection,
+  QueryError,
   ResultSetHeader,
   RowDataPacket,
 } from "mysql2/promise";
+import { ConflictError } from "../errors/CustomErrors";
 
 /**
  * 예금주 테이블 모델
@@ -24,6 +26,15 @@ export class AccountOwnerModel {
   }
 
   /**
+   * 객체를 JSON으로 변환할 때 id 필드를 제외한다.
+   * @returns 객체에서 id 필드를 제외한 나머지 필드로 구성된 객체
+   */
+  toJSON() {
+    const { id, ...rest } = this;
+    return rest;
+  }
+
+  /**
    * 예금주 생성
    * @param uuid 예금주 uuid
    * @param type 예금주 유형 ("player" 또는 "company")
@@ -35,21 +46,28 @@ export class AccountOwnerModel {
     type: "player" | "company",
     connection: PoolConnection | Pool,
   ) {
-    const [result] = await connection.execute<ResultSetHeader>(
-      `
+    try {
+      const [result] = await connection.execute<ResultSetHeader>(
+        `
         INSERT INTO account_owners (owner_uuid, type)
         VALUES (?, ?)
       `,
-      [uuid, type],
-    );
+        [uuid, type],
+      );
 
-    return new AccountOwnerModel({
-      id: String(result.insertId),
-      uuid,
-      type,
-      createdAt: new Date(),
-      updatedAt: null,
-    });
+      return new AccountOwnerModel({
+        id: String(result.insertId),
+        uuid,
+        type,
+        createdAt: new Date(),
+        updatedAt: null,
+      });
+    } catch (error) {
+      if ((error as QueryError).errno === 1062) {
+        throw new ConflictError("Account owner already exists.");
+      }
+      throw error;
+    }
   }
 
   /**

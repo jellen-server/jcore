@@ -1,4 +1,10 @@
-import { Pool, PoolConnection, ResultSetHeader } from "mysql2/promise";
+import {
+  Pool,
+  PoolConnection,
+  QueryError,
+  ResultSetHeader,
+} from "mysql2/promise";
+import { ConflictError } from "../errors/CustomErrors";
 
 /**
  * 서버 접속 기록 모델 클래스
@@ -27,22 +33,29 @@ export class ConnectionLogsModel {
     nickname: string,
     connection: PoolConnection | Pool,
   ) {
-    const [result] = await connection.execute<ResultSetHeader>(
-      `
+    try {
+      const [result] = await connection.execute<ResultSetHeader>(
+        `
         INSERT INTO connection_logs (player_id, ip, port, nickname)
         VALUES (?, ?, ?, ?)
       `,
-      [playerId, ip, port, nickname],
-    );
+        [playerId, ip, port, nickname],
+      );
 
-    return new ConnectionLogsModel({
-      id: String(result.insertId),
-      playerId,
-      ip,
-      port,
-      nickname,
-      createdAt: new Date(),
-    });
+      return new ConnectionLogsModel({
+        id: String(result.insertId),
+        playerId,
+        ip,
+        port,
+        nickname,
+        createdAt: new Date(),
+      });
+    } catch (error) {
+      if ((error as QueryError).errno === 1062) {
+        throw new ConflictError("Connection log already exists.");
+      }
+      throw error;
+    }
   }
 
   /**

@@ -1,9 +1,11 @@
 import {
   Pool,
   PoolConnection,
+  QueryError,
   ResultSetHeader,
   RowDataPacket,
 } from "mysql2/promise";
+import { ConflictError } from "../errors/CustomErrors";
 
 /**
  * players 테이블 모델
@@ -30,6 +32,15 @@ export class PlayersModel {
   }
 
   /**
+   * 객체를 JSON으로 변환할 때 id 필드를 제외한다.
+   * @returns 객체에서 id 필드를 제외한 나머지 필드로 구성된 객체
+   */
+  toJSON() {
+    const { id, ...rest } = this;
+    return rest;
+  }
+
+  /**
    * 플레이어 생성
    * @param uuid 플레이어 uuid
    * @param steamid64 플레이어 SteamID64
@@ -46,26 +57,33 @@ export class PlayersModel {
     accountOwnerId: string,
     connection: PoolConnection | Pool,
   ) {
-    const [result] = await connection.execute<ResultSetHeader>(
-      `
+    try {
+      const [result] = await connection.execute<ResultSetHeader>(
+        `
         INSERT INTO players (player_uuid, steamid64, nickname, avatar, account_owner_id)
         VALUES (?, ?, ?, ?, ?)
       `,
-      [uuid, steamid64, nickname, avatar, accountOwnerId],
-    );
+        [uuid, steamid64, nickname, avatar, accountOwnerId],
+      );
 
-    const player = new PlayersModel({
-      id: String(result.insertId),
-      uuid,
-      steamid64,
-      nickname,
-      avatar,
-      createdAt: new Date(),
-      lastVisitedAt: new Date(),
-      totalPlaytime: 0,
-    });
+      const player = new PlayersModel({
+        id: String(result.insertId),
+        uuid,
+        steamid64,
+        nickname,
+        avatar,
+        createdAt: new Date(),
+        lastVisitedAt: new Date(),
+        totalPlaytime: 0,
+      });
 
-    return player;
+      return player;
+    } catch (error) {
+      if ((error as QueryError).errno === 1062) {
+        throw new ConflictError("Player already exists.");
+      }
+      throw error;
+    }
   }
 
   /**

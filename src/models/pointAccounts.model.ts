@@ -1,9 +1,11 @@
 import {
   Pool,
   PoolConnection,
+  QueryError,
   ResultSetHeader,
   RowDataPacket,
 } from "mysql2/promise";
+import { ConflictError } from "../errors/CustomErrors";
 
 /**
  * 포인트 계좌 모델
@@ -11,7 +13,7 @@ import {
 export class PointAccountsModel {
   id: string;
   uuid: string;
-  playerId: string;
+  ownerId: string;
   accountNumber: string;
   password: string;
   point: number;
@@ -21,7 +23,7 @@ export class PointAccountsModel {
   constructor(data: any) {
     this.id = data.id || "";
     this.uuid = data.uuid || "";
-    this.playerId = data.playerId || "";
+    this.ownerId = data.ownerId || "";
     this.accountNumber = data.accountNumber || "";
     this.password = data.password || "";
     this.point = data.point || 0;
@@ -30,40 +32,55 @@ export class PointAccountsModel {
   }
 
   /**
+   * 객체를 JSON으로 변환할 때 id 필드를 제외한다.
+   * @returns 객체에서 id 필드를 제외한 나머지 필드로 구성된 객체
+   */
+  toJSON() {
+    const { id, ...rest } = this;
+    return rest;
+  }
+
+  /**
    * 포인트 계좌 생성
    * @param uuid 계좌 uuid
-   * @param playerId 플레이어 id
+   * @param ownerId 예금주 id
    * @param accountNumber 계좌 번호
-   * @param password 계좌 비밀번호
    * @param connection MariaDB 연결 객체
    * @returns 생성된 PointAccountModel 인스턴스
    */
   static async create(
     uuid: string,
-    playerId: string,
+    ownerId: string,
     accountNumber: string,
     connection: PoolConnection | Pool,
   ) {
-    const [result] = await connection.execute<ResultSetHeader>(
-      `
-        INSERT INTO point_accounts (uuid, player_id, account_number)
+    try {
+      const [result] = await connection.execute<ResultSetHeader>(
+        `
+        INSERT INTO point_accounts (account_uuid, owner_id, account_number)
         VALUES (?, ?, ?)
       `,
-      [uuid, playerId, accountNumber],
-    );
+        [uuid, ownerId, accountNumber],
+      );
 
-    const pointAccount = new PointAccountsModel({
-      id: String(result.insertId),
-      uuid,
-      playerId,
-      accountNumber,
-      password: null,
-      point: 0,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
+      const pointAccount = new PointAccountsModel({
+        id: String(result.insertId),
+        uuid,
+        ownerId,
+        accountNumber,
+        password: null,
+        point: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
 
-    return pointAccount;
+      return pointAccount;
+    } catch (error) {
+      if ((error as QueryError).errno === 1062) {
+        throw new ConflictError("Point account already exists.");
+      }
+      throw error;
+    }
   }
 
   /**
@@ -123,17 +140,17 @@ export class PointAccountsModel {
    * @param connection MariaDB 연결 객체
    * @returns 조회된 PointAccountModel 인스턴스 또는 null
    */
-  static async findByPlayerId(
-    playerId: string,
+  static async findByOwnerId(
+    ownerId: string,
     connection: PoolConnection | Pool,
   ) {
     const [rows] = await connection.execute<RowDataPacket[]>(
       `
         SELECT *
         FROM point_accounts
-        WHERE player_id = ?
+        WHERE owner_id = ?
       `,
-      [playerId],
+      [ownerId],
     );
 
     const pointAccount = rows[0];
@@ -184,7 +201,7 @@ export class PointAccountsModel {
     const pointAccount = new PointAccountsModel({
       id: String(data.account_id),
       uuid: data.account_uuid,
-      playerId: data.player_id,
+      ownerId: data.owner_id,
       accountNumber: data.account_number,
       password: data.password,
       point: data.point,

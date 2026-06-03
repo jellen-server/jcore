@@ -1,4 +1,10 @@
-import { Pool, PoolConnection, ResultSetHeader } from "mysql2/promise";
+import {
+  Pool,
+  PoolConnection,
+  QueryError,
+  ResultSetHeader,
+} from "mysql2/promise";
+import { ConflictError } from "../errors/CustomErrors";
 
 /**
  * 닉네임 기록 테이블 모델
@@ -28,20 +34,27 @@ export class NicknameHistoryModel {
     nickname: string,
     connection: PoolConnection | Pool,
   ) {
-    const [result] = await connection.execute<ResultSetHeader>(
-      `
+    try {
+      const [result] = await connection.execute<ResultSetHeader>(
+        `
         INSERT INTO nickname_history (player_id, nickname)
         VALUES (?, ?)
       `,
-      [playerId, nickname],
-    );
+        [playerId, nickname],
+      );
 
-    return new NicknameHistoryModel({
-      id: String(result.insertId),
-      playerId,
-      nickname,
-      createdAt: new Date(),
-    });
+      return new NicknameHistoryModel({
+        id: String(result.insertId),
+        playerId,
+        nickname,
+        createdAt: new Date(),
+      });
+    } catch (error) {
+      if ((error as QueryError).errno === 1062) {
+        throw new ConflictError("Nickname history already exists.");
+      }
+      throw error;
+    }
   }
 
   /**
@@ -49,7 +62,7 @@ export class NicknameHistoryModel {
    * @param data DB에서 조회한 데이터 객체
    * @returns NicknameHistoryModel 인스턴스 또는 null
    */
-  static async formatNicknameHistory(data: any) {
+  private static formatNicknameHistory(data: any) {
     if (!data) {
       return null;
     }

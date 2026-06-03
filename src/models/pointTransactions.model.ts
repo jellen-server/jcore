@@ -1,9 +1,17 @@
-import { Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
+import {
+  Pool,
+  PoolConnection,
+  QueryError,
+  ResultSetHeader,
+  RowDataPacket,
+} from "mysql2/promise";
+import { ConflictError } from "../errors/CustomErrors";
 
 /**
  * 포인트 거래 기록 모델
  */
 export class PointTransactionsModel {
+  id: string;
   uuid: string;
   senderAccountId: string;
   senderAccountHolderUuid?: string;
@@ -20,6 +28,7 @@ export class PointTransactionsModel {
   createdAt: Date;
 
   constructor(data: any) {
+    this.id = data.id || "";
     this.uuid = data.uuid || "";
     this.senderAccountId = data.senderAccountId || "";
     this.senderAccountHolderUuid = data.senderAccountHolderUuid || undefined;
@@ -37,6 +46,15 @@ export class PointTransactionsModel {
     this.receiverBalanceAfter = data.receiverBalanceAfter || 0;
     this.comment = data.comment || null;
     this.createdAt = new Date(data.createdAt || new Date());
+  }
+
+  /**
+   * 객체를 JSON으로 변환할 때 id 필드를 제외한다.
+   * @returns 객체에서 id 필드를 제외한 나머지 필드로 구성된 객체
+   */
+  toJSON() {
+    const { id, senderAccountId, receiverAccountId, ...rest } = this;
+    return rest;
   }
 
   /**
@@ -61,33 +79,41 @@ export class PointTransactionsModel {
     comment: string | null,
     connection: PoolConnection | Pool,
   ) {
-    await connection.execute(
-      `
+    try {
+      const [result] = await connection.execute<ResultSetHeader>(
+        `
         INSERT INTO point_transactions
             (transaction_uuid, sender_account_id, receiver_account_id, amount, sender_balance_after, receiver_balance_after, comment)
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `,
-      [
-        transactionUuid,
+        [
+          transactionUuid,
+          senderAccountId,
+          receiverAccountId,
+          amount,
+          senderBalanceAfter,
+          receiverBalanceAfter,
+          comment,
+        ],
+      );
+
+      return new PointTransactionsModel({
+        id: String(result.insertId),
+        uuid: transactionUuid,
         senderAccountId,
         receiverAccountId,
         amount,
         senderBalanceAfter,
         receiverBalanceAfter,
         comment,
-      ],
-    );
-
-    return new PointTransactionsModel({
-      uuid: transactionUuid,
-      senderAccountId,
-      receiverAccountId,
-      amount,
-      senderBalanceAfter,
-      receiverBalanceAfter,
-      comment,
-      createdAt: new Date(),
-    });
+        createdAt: new Date(),
+      });
+    } catch (error) {
+      if ((error as QueryError).errno === 1062) {
+        throw new ConflictError("Point transaction already exists.");
+      }
+      throw error;
+    }
   }
 
   /**
@@ -101,12 +127,13 @@ export class PointTransactionsModel {
     }
 
     return new PointTransactionsModel({
+      id: String(data.id),
       uuid: data.transaction_uuid,
-      senderAccountId: data.sender_account_id,
+      senderAccountId: String(data.sender_account_id),
       senderAccountHolderUuid: data.sender_account_holder_uuid,
       senderAccountHolderNickname: data.sender_account_holder_nickname,
       senderAccountNumber: data.sender_account_number,
-      receiverAccountId: data.receiver_account_id,
+      receiverAccountId: String(data.receiver_account_id),
       receiverAccountHolderUuid: data.receiver_account_holder_uuid,
       receiverAccountHolderNickname: data.receiver_account_holder_nickname,
       receiverAccountNumber: data.receiver_account_number,
