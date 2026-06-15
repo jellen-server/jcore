@@ -71,9 +71,15 @@ export class PlayersService {
               );
               break;
             } catch (error: any) {
-              if (typeof error === typeof ConflictError) continue;
+              if (error instanceof ConflictError) continue;
               throw error;
             }
+          }
+
+          if (!newPointAccount) {
+            throw new InternalServerError(
+              "Failed to create point account after retrying account number generation.",
+            );
           }
 
           // 초기 자금 트랜잭션 생성
@@ -96,7 +102,7 @@ export class PlayersService {
           const newPointTransaction = await PointTransactionsModel.create(
             transactionUuid,
             jellenCentralBankAccount.id,
-            newPointAccount!.id,
+            newPointAccount.id,
             initialPoint,
             jellenCentralBankAccount.point - initialPoint,
             initialPoint,

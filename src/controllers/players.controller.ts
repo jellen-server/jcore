@@ -13,18 +13,21 @@ export class PlayersController {
       const { ip, port, nickname } = req.body;
 
       // 플레이어 연결 처리
-      const result = await PlayersService.handleConnection(
+      const player = await PlayersService.handleConnection(
         steamid64,
         ip,
         port,
         nickname,
       );
 
+      // 응답 데이터에서 id 필드 제거
+      const { id, ...responseData } = player;
+
       // 성공 응답 반환
       res.json({
         success: true,
         message: "Player connection recorded successfully.",
-        data: result,
+        data: responseData,
       });
     },
   );
